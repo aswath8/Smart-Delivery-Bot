@@ -18,7 +18,7 @@ sensor=camvidMonoCameraSensor()
 images= imageDatastore('imgseq');
 I=readimage(images,1);
 first=0;
-
+dnnseg=0;
 
 
 cells_per_meter=100;
@@ -29,26 +29,35 @@ occgrid=occupancyMap(3,3,cells_per_meter);
 
 for i=1:21
     I=readimage(images,i);
-    % Segment the image.
-    [C,scores,allScores] = semanticseg(I,net);
+    if dnnseg==1
+        % Segment the image.
+        [C,scores,allScores] = semanticseg(I,net);
 
-    % Overlay free space onto the image.
-    B = labeloverlay(I,C,'IncludedLabels',"Road");
+        % Overlay free space onto the image.
+        B = labeloverlay(I,C,'IncludedLabels',"Road");
 
-    % Display free space and image.
-    %figure(1)
-    %imshow(B)
-    
-    % Use the network's output score for Road as the free space confidence.
-    roadClassIdx = 4;
-    freeSpaceConfidence = allScores(:,:,roadClassIdx);
+        % Display free space and image.
+        %figure(1)
+        %imshow(B)
 
-    % Display the free space confidence.
-    %figure(2)
-    %imagesc(freeSpaceConfidence)
-    %title('Free Space Confidence Scores')
-    %colorbar
-    
+        % Use the network's output score for Road as the free space confidence.
+        roadClassIdx = 4;
+        freeSpaceConfidence = allScores(:,:,roadClassIdx);
+
+        % Display the free space confidence.
+        %figure(2)
+        %imagesc(freeSpaceConfidence)
+        %title('Free Space Confidence Scores')
+        %colorbar
+    else
+        GI=rgb2gray(I);
+        mask = false(size(GI)); 
+        mask(800/2,600-30) = true;
+        W = graydiffweight(GI, mask, 'GrayDifferenceCutoff', 20);
+        thresh = 0.01;
+        [BW, D] = imsegfmm(W, mask, thresh);
+        freeSpaceConfidence=BW;
+    end
     % Define bird's-eye-view transformation parameters.
     distAheadOfSensor = 2; % in meters, as previously specified in monoCamera height input
     spaceToOneSide    = 1;  % look 3 meters to the right and left
