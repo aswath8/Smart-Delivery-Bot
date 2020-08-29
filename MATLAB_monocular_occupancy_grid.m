@@ -21,7 +21,7 @@ first=0;
 dnnseg=0;
 
 
-cells_per_meter=100;
+cells_per_meter=80;
 map_side=3;
 occgrid=occupancyMap(3,3,cells_per_meter);        
 
