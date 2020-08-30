@@ -1,3 +1,6 @@
+clc
+close all
+
 % Download the pretrained network.
 pretrainedURL = 'https://www.mathworks.com/supportfiles/vision/data/segnetVGG16CamVid.mat';
 pretrainedFolder = fullfile(tempdir,'pretrainedSegNet');
@@ -20,8 +23,9 @@ first=0;
 dnnseg=0;
 
 cells_per_meter=80;
-map_side=3;
-occgrid=occupancyMap(3,3,cells_per_meter);        
+map_side=4;
+map_origin=[1 1];
+occgrid=occupancyMap(map_side,map_side,cells_per_meter);        
 
 
 
@@ -285,8 +289,10 @@ for viewId=3:30
         mask = false(size(GI)); 
         mask(800/2,600-30) = true;
         W = graydiffweight(GI, mask, 'GrayDifferenceCutoff', 20);
-        thresh = 0.01;
+        thresh = 0.001;
         [BW, D] = imsegfmm(W, mask, thresh);
+        B=labeloverlay(I,BW);
+        figure(2), imshow(B);
         freeSpaceConfidence=BW;
     end
     % Define bird's-eye-view transformation parameters.
@@ -326,16 +332,16 @@ for viewId=3:30
         freeSpaceBEV, birdsEyeConfig, gridX, gridY, cellSize);
     
     if first==0
-        first=1
+        first=1;
         Xinit = size(occupancyGrid(:,1));
         Yinit = size(occupancyGrid(1,:));
         [Xq,Yq] = meshgrid(1:Xinit(1),1:Yinit(2));
         Xq = reshape(Xq, 1, []);
         Yq = reshape(Yq, 1, []);
-        Xq = Xq+50;
-        Yq = Yq+50;
         probb=reshape(occupancyGrid',1,[]);
-        updateOccupancy(occgrid,[(Xq/100)' (Yq/100)'],probb)
+        Xqm=Xq/cells_per_meter;
+        Yqm=Yq/cells_per_meter;
+        updateOccupancy(occgrid,[(map_origin(1)+Xqm)' (map_origin(2)+Yqm)'],probb)
         figure(5)
         show(occgrid)
     end
@@ -370,31 +376,32 @@ for viewId=3:30
     hold off
     %}
     
-        
-        
+    del=camPose.AbsolutePose.Translation;
+    sensorloc=[(map_origin(1)+spaceToOneSide+del(1)/100) (map_origin(2)+del(3)/100)];
+     
     camPose = poses(vSet,viewId);
     R=camPose.AbsolutePose.Rotation; 
     eulZYX = rotm2eul(R);
-    %theta=0; %TO ROTATE CLOCKWISE BY X DEGREES
-    %R=[cosd(theta) -sind(theta[delx dely delz]=camPoses.AbsolutePose(viewId).Translation;); sind(theta) cosd(theta)]; %CREATE THE MATRIX
-    %rotXY=XY*R'; %MULTIPLY VECTORS BY THE ROT MATRIX 
-    %Xqr = reshape(rotXY(:,1), 1, []);
-    %Yqr = reshape(rotXY(:,2), 1, []);
-    %SHIFTING
+    theta=rad2deg(eulZYX(2)); %TO ROTATE CLOCKWISE BY X DEGREES
+    R=[cosd(theta) -sind(theta); sind(theta) cosd(theta)]; %CREATE THE MATRIX
+    RX=Xqm-spaceToOneSide; %Rotate map about sensor location
+    RY=Yqm-0;
+    rotXY=[RX(:) RY(:)]*R'; %MULTIPLY VECTORS BY THE ROT MATRIX 
+    Xq = reshape(rotXY(:,1), 1, []);
+    Yq = reshape(rotXY(:,2), 1, []);
     
-    del=camPose.AbsolutePose.Translation;
+    %SHIFTING    
+    Xqt = map_origin(1)+Xq+spaceToOneSide+(del(1)/100);
+    Yqt = map_origin(2)+Yq+0+(del(3)/100);
     
-    Xq = Xq+0;
-    Yq = Yq+5;
-    
-    prev_probs=getOccupancy(occgrid, [Xq' Yq']);
+    prev_probs=getOccupancy(occgrid, [Xqt' Yqt']);
     probb=reshape(occupancyGrid',1,[]);
     probb=min(prev_probs',probb);
-    updateOccupancy(occgrid,[(Xq/100)' (Yq/100)'],probb)
+    updateOccupancy(occgrid,[Xqt' Yqt'],probb)
     figure(5);
     show(occgrid);
     hold on 
-    plot(1.3+del(1)/100, 0.5+del(3)/100, 'ro')
+    plot(sensorloc(1), sensorloc(2),'ro')
     hold off
 
 end
