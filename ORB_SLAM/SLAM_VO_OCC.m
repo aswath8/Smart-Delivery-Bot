@@ -18,8 +18,7 @@ net = data.net;
 
 sensor=camvidMonoCameraSensor();
 
-cam = ipcam('http://192.168.29.34:8080/video');
-
+images= imageDatastore('imgseq');
 first=0;
 dnnseg=0;
 
@@ -36,7 +35,7 @@ vSet = imageviewset;
 
 % Read and display the first image.
 
-I=snapshot(cam);
+I=readimage(images,1);
 
 calibrationData = load('camera_params_camvid.mat');
 
@@ -95,13 +94,9 @@ trajectoryActual    = plot3(0, 0, 0, 'b-');
 legend('Estimated Trajectory', 'Actual Trajectory');
 title('Camera Trajectory');
 
-
-input('press enter')
-
-
 % Read and display the image.
 viewId = 2;
-I=snapshot(cam);
+I = readimage(images,viewId);
 
 % Convert to gray scale and undistort.
 I = undistortImage(rgb2gray(I), intrinsics);
@@ -134,11 +129,10 @@ prevFeatures = currFeatures;
 prevPoints   = currPoints;
 
 
-for viewId=3:200
-    input('press enter')
-    I=snapshot(cam);
+for viewId=3:30
+    I=readimage(images,viewId);
     
-    if viewId<20    
+    if viewId<15    
         % Convert to gray scale and undistort.
         I = undistortImage(rgb2gray(I), intrinsics);
 
@@ -269,7 +263,7 @@ for viewId=3:200
 
     
     
-    I=snapshot(cam);
+    I=readimage(images,viewId);
     if dnnseg==1
         % Segment the image.
         [C,scores,allScores] = semanticseg(I,net);
@@ -298,7 +292,7 @@ for viewId=3:200
         thresh = 0.001;
         [BW, D] = imsegfmm(W, mask, thresh);
         B=labeloverlay(I,BW);
-        %figure(2), imshow(B);
+        figure(2), imshow(B);
         freeSpaceConfidence=BW;
     end
     % Define bird's-eye-view transformation parameters.
@@ -322,7 +316,7 @@ for viewId=3:200
     freeSpaceBEV = transformImage(birdsEyeConfig,freeSpaceConfidence); 
 
     % Display image frame in bird's-eye view.
-    %figure(30), imshow(imageBEV);
+    figure(30), imshow(imageBEV);
     
     %figure(4), imagesc(freeSpaceBEV);
     %title('Free Space Confidence');
